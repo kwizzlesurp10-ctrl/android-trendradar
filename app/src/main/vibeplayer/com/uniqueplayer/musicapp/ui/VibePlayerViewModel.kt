@@ -15,6 +15,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -42,42 +43,83 @@ class VibePlayerViewModel @Inject constructor(
     private var playbackTickerJob: Job? = null
     private var sleepTimerJob: Job? = null
 
-    val uiState: StateFlow<VibePlayerUiState> = combine(
+    private data class PlaybackState(
+        val library: List<MusicTrack>,
+        val queue: List<MusicTrack>,
+        val playlists: List<com.uniqueplayer.musicapp.domain.model.Playlist>,
+        val snapshot: com.uniqueplayer.musicapp.domain.playback.PlaybackSnapshot
+    )
+
+    private data class UiControlsState(
+        val equalizer: EqualizerSettings,
+        val timerMinutes: Int,
+        val timerEnabled: Boolean,
+        val timerRemainingMs: Long,
+        val recommendations: List<MusicTrack>
+    )
+
+    private val playbackState: Flow<PlaybackState> = combine(
         repository.observeLibrary(),
         repository.observeQueue(),
         repository.observePlaylists(),
-        playerController.observeSnapshot(),
+        playerController.observeSnapshot()
+    ) { library, queue, playlists, snapshot ->
+        PlaybackState(
+            library = library,
+            queue = queue,
+            playlists = playlists,
+            snapshot = snapshot
+        )
+    }
+
+    private val uiControlsState: Flow<UiControlsState> = combine(
         equalizerState,
         sleepTimerMinutes,
         sleepTimerEnabled,
         sleepRemainingMs,
-        recommendationsState,
+        recommendationsState
+    ) { eq, timerMinutes, timerEnabled, timerRemainingMs, recommendations ->
+        UiControlsState(
+            equalizer = eq,
+            timerMinutes = timerMinutes,
+            timerEnabled = timerEnabled,
+            timerRemainingMs = timerRemainingMs,
+            recommendations = recommendations
+        )
+    }
+
+    val uiState: StateFlow<VibePlayerUiState> = combine(
+        playbackState,
+        uiControlsState,
         scanningState
-    ) { library, queue, playlists, snapshot, eq, timerMinutes, timerEnabled, timerRemaining, recs, scanning ->
-        val resolvedQueue = if (queue.isNotEmpty()) queue else library
-        val currentTrack = resolvedQueue.firstOrNull { it.id == snapshot.currentTrackId }
+    ) { playback, controls, scanning ->
+        val resolvedQueue = if (playback.queue.isNotEmpty()) playback.queue else playback.library
+        val currentTrack = resolvedQueue.firstOrNull { it.id == playback.snapshot.currentTrackId }
             ?: resolvedQueue.firstOrNull()
         val activeLyric = currentTrack?.let { track ->
-            lyricsSyncEngine.findCurrentLyric(track.lyrics, snapshot.positionMs)
+            lyricsSyncEngine.findCurrentLyric(track.lyrics, playback.snapshot.positionMs)
         }
         VibePlayerUiState(
             isLoading = false,
             isScanningLibrary = scanning,
-            tracks = library,
+            tracks = playback.library,
             queue = resolvedQueue,
-            playlists = playlists,
-            recommendedTracks = recs,
+            playlists = playback.playlists,
+            recommendedTracks = controls.recommendations,
             currentTrack = currentTrack,
-            isPlaying = snapshot.isPlaying,
-            playbackMode = snapshot.mode,
-            positionMs = snapshot.positionMs,
+            isPlaying = playback.snapshot.isPlaying,
+            playbackMode = playback.snapshot.mode,
+            positionMs = playback.snapshot.positionMs,
             durationMs = currentTrack?.durationMs ?: 0L,
             activeLyricLine = activeLyric,
-            equalizerBandGains = eq.bandGains,
-            visualizerSamples = visualizerEngine.generateFrame(snapshot.positionMs, snapshot.isPlaying),
-            sleepTimerEnabled = timerEnabled,
-            sleepTimerMinutes = timerMinutes,
-            sleepTimerRemainingMs = timerRemaining
+            equalizerBandGains = controls.equalizer.bandGains,
+            visualizerSamples = visualizerEngine.generateFrame(
+                positionMs = playback.snapshot.positionMs,
+                playing = playback.snapshot.isPlaying
+            ),
+            sleepTimerEnabled = controls.timerEnabled,
+            sleepTimerMinutes = controls.timerMinutes,
+            sleepTimerRemainingMs = controls.timerRemainingMs
         )
     }.stateIn(
         scope = viewModelScope,

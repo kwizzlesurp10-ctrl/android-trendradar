@@ -40,7 +40,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.input.pointer.consume
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -132,6 +131,7 @@ fun VibePlayerScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun PlayerGestureCard(
     uiState: VibePlayerUiState,
@@ -143,8 +143,7 @@ private fun PlayerGestureCard(
         modifier = Modifier
             .fillMaxWidth()
             .pointerInput(Unit) {
-                detectHorizontalDragGestures { change, dragAmount ->
-                    change.consume()
+                detectHorizontalDragGestures { _, dragAmount ->
                     if (dragAmount > 40f) onSwipePrevious()
                     if (dragAmount < -40f) onSwipeNext()
                 }
@@ -183,6 +182,7 @@ private fun PlayerGestureCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun QueueCard(
     uiState: VibePlayerUiState,
@@ -346,7 +346,7 @@ private fun VisualizationCard(samples: List<Float>) {
                     val x = index * spacing
                     val barHeight = amplitude * centerY
                     drawLine(
-                        color = MaterialTheme.colorScheme.primary,
+                        color = androidx.compose.ui.graphics.Color(0xFF6750A4),
                         start = Offset(x, centerY - barHeight),
                         end = Offset(x, centerY + barHeight),
                         strokeWidth = 3f,
@@ -356,7 +356,7 @@ private fun VisualizationCard(samples: List<Float>) {
                 val radius = min(size.width, size.height) * 0.2f
                 val center = Offset(size.width * 0.86f, size.height * 0.5f)
                 drawCircle(
-                    color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.25f),
+                    color = androidx.compose.ui.graphics.Color(0xFF7D5260).copy(alpha = 0.25f),
                     center = center,
                     radius = radius
                 )
