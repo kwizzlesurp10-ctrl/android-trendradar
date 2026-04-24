@@ -3,8 +3,11 @@ import com.devradar.trendradar.core.network.GeminiApiService
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 data class NewsItem(val id: String, val title: String, val source: String, val url: String, val summary: String)
-class NewsRepository(private val fs: FirebaseFirestore, val g: GeminiApiService) {
-    suspend fun loadTrendingNews(): List<NewsItem> = try {
+interface NewsDataSource {
+    suspend fun loadTrendingNews(): List<NewsItem>
+}
+class NewsRepository(private val fs: FirebaseFirestore, val g: GeminiApiService) : NewsDataSource {
+    override suspend fun loadTrendingNews(): List<NewsItem> = try {
         fs.collection("news").get().await().documents.map {
             NewsItem(it.id, it.getString("title") ?: "", it.getString("source") ?: "", it.getString("url") ?: "", it.getString("summary") ?: "")
         }
