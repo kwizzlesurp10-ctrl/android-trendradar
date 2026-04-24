@@ -26,6 +26,6 @@ object AppModule {
     @Provides @Singleton fun provideAppsRepo(api: PlayReportingApiService, fs: FirebaseFirestore) = AppsRepository(api, fs)
     @Provides @Singleton fun provideEcoRepo(fs: FirebaseFirestore) = EcosystemTrendsRepository(fs)
     @Provides @Singleton fun provideInsightsRepo(g: GeminiApiService) = InsightsRepository(g)
-    @Provides @Singleton fun provideNewsRepo(fs: FirebaseFirestore, g: GeminiApiService) = NewsRepository(fs, g)
+    @Provides @Singleton fun provideNewsRepo(fs: FirebaseFirestore, g: GeminiApiService): NewsDataSource = NewsRepository(fs, g)
     @Provides @Singleton fun provideSubRepo() = SubscriptionRepository()
 }
